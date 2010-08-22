@@ -80,8 +80,7 @@ EOS
 }
 
 sub _default_script_dir {
-    (my $pkg = lc(__PACKAGE__)) =~ s/::/-/g;
-    $pkg .= "XXXX";
+    (my $pkg = lc(__PACKAGE__) . "XXXX") =~ s/::/-/g;
     return tempdir( $pkg, DIR=>tmpdir(), CLEANUP=>1 );
 }
 
@@ -90,7 +89,7 @@ sub DESTROY {
     for my $command_file ( @{ $self->{command_files} } ) {
         unlink $command_file;
     }
-    rmdir $self->{script_dir};
+    rmdir $self->{script_dir} || warn $!;
 }
 
 
