@@ -29,7 +29,7 @@ Test::Mock::ExternalCommand enable to make mock-external command in easy way.
 
 =head2 new( script_dir => "/script/dir/used/in/this/module" )
 
-parameter <I>script_dir</I> is directory where mock will be installed.
+parameter <I>script_dir</I> is directory where mock will be installed. If <I>script_dir</I>is omitted, temporary directory is automatically generated and deleted when object is not used.
 
 =cut
 
