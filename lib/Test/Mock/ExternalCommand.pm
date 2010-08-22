@@ -2,9 +2,10 @@ package Test::Mock::ExternalCommand;
 use strict;
 use warnings;
 use Config;
-use File::Spec::Functions qw(catfile);
+use File::Spec::Functions qw(catfile tmpdir);
+use File::Temp qw(tempdir);
 
-use '5.008';
+use 5.008;
 our $VERSION = '0.01';
 
 =head1 NAME
@@ -14,10 +15,13 @@ Test::Mock::ExternalCommand - Create mock external-command easily
 =head1 SYNOPSIS
 
   use Test::Mock::ExternalCommand;
+  my $m = Test::Mock::ExternalCommand->new();
+  $m->set_command( 'my-command-aaa', 'command-output', 0);
+  # use 'my-command-aaa' in your test.
 
 =head1 DESCRIPTION
 
-Test::Mock::ExternalCommand is
+Test::Mock::ExternalCommand enable to make mock-external command in easy way.
 
 =head1 Methods
 
@@ -33,8 +37,9 @@ sub new {
     my $class = shift;
     my %options = @_;
 
+    my $script_dir = $options{script_dir} || _default_script_dir();
     my $self = {
-        script_dir => $options{script_dir},
+        script_dir => $script_dir,
     };
     bless $self, $class;
 }
@@ -48,7 +53,7 @@ set mock external command command. Mock external scripts are deleted when object
 sub set_command {
     my $self = shift;
     my( $command_name, $command_output, $command_exit_status) = @_;
-    mkdir $self->{script_dir};
+    mkdir $self->{script_dir} if ( !-d $self->{script_dir} );
 
     my $command_file = catfile($self->{script_dir}, $command_name);
     push @{ $self->{command_files} },$command_file;
@@ -74,6 +79,11 @@ exit $exit_status;
 EOS
 }
 
+sub _default_script_dir {
+    (my $pkg = lc(__PACKAGE__)) =~ s/::/-/g;
+    $pkg .= "XXXX";
+    return tempdir( $pkg, DIR=>tmpdir(), CLEANUP=>1 );
+}
 
 sub DESTROY {
     my $self = shift;
