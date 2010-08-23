@@ -68,6 +68,7 @@ sub set_command {
 
 sub _command_script_body {
     my($output, $exit_status) = @_;
+    $exit_status = 0 if ( !defined $exit_status );
 
     return <<EOS;
 #!/usr/bin/perl -w
