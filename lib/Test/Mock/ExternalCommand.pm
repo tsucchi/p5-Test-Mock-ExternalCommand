@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Config;
 use File::Spec::Functions qw(catfile tmpdir);
-use File::Temp qw(tempdir);
+use File::Temp qw(tempdir mkstemp);
 
 use 5.008;
 our $VERSION = '0.01';
@@ -39,7 +39,8 @@ sub new {
 
     my $script_dir = $options{script_dir} || _default_script_dir();
     my $self = {
-        script_dir => $script_dir,
+        script_dir           => $script_dir,
+        command_history_file => catfile( (mkstemp( "historyXXXX" ))[1] ),
     };
     bless $self, $class;
 }
@@ -53,29 +54,71 @@ set mock external command command. Mock external scripts are deleted when object
 sub set_command {
     my $self = shift;
     my( $command_name, $command_output, $command_exit_status) = @_;
-    mkdir $self->{script_dir} if ( !-d $self->{script_dir} );
+    mkdir $self->script_dir if ( !-d $self->script_dir );
 
-    my $command_file = catfile($self->{script_dir}, $command_name);
+    my $command_file = catfile($self->script_dir, $command_name);
     push @{ $self->{command_files} },$command_file;
 
     open( my $command_fh, '>', $command_file ) || die $!;
-    print {$command_fh} _command_script_body($command_output, $command_exit_status);
+    print {$command_fh} $self->_command_script_body( $command_file,
+                                                     $command_output,
+                                                     $command_exit_status);
     close($command_fh);
     chmod 0755, $command_file;
 
-    $ENV{PATH} = sprintf("%s%s%s", $self->{script_dir}, $Config{path_sep}, $ENV{PATH});
+    $ENV{PATH} = sprintf("%s%s%s", $self->script_dir, $Config{path_sep}, $ENV{PATH});
 }
 
-sub _command_script_body {
-    my($output, $exit_status) = @_;
-    $exit_status = 0 if ( !defined $exit_status );
+=head2 history
 
+return command history.
+
+=cut
+
+sub history {
+    my $self = shift;
+    my @result;
+    open(my $history_fh, '<', $self->{command_history_file}) || die $!;
+    while( my $line = <$history_fh> ) {
+        my @command_and_args = split(/\s+/, $line);
+        push @result, \@command_and_args;
+    }
+    close($history_fh);
+    return @result;
+}
+
+
+=head2 script_dir
+
+return script_dir set in new() or automatically set.
+
+=cut
+
+sub script_dir {
+    return shift->{script_dir};
+}
+
+
+sub _command_script_body {
+    my $self = shift;
+    my($command_filename, $output, $exit_status) = @_;
+    $exit_status = 0 if ( !defined $exit_status );
+    my $history_file = $self->{command_history_file};
+    my $script_dir = $self->script_dir;
+    $command_filename =~ s{^$script_dir/?}{};
+
+    my $mode = -e $history_file ? '>>' : '>';
     return <<EOS;
 #!/usr/bin/perl -w
 use strict;
 use warnings;
 
+open(my \$HISTORY, '$mode', "$history_file") || die \$!;
+print {\$HISTORY} "$command_filename \@ARGV\\n";
+close(\$HISTORY);
+
 print "$output";
+
 exit $exit_status;
 EOS
 }
@@ -87,6 +130,7 @@ sub _default_script_dir {
 
 sub DESTROY {
     my $self = shift;
+    unlink $self->{command_history_file};
     for my $command_file ( @{ $self->{command_files} } ) {
         unlink $command_file;
     }
