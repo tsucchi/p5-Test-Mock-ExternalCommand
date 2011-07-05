@@ -2,7 +2,7 @@ package Test::Mock::ExternalCommand;
 use strict;
 use warnings;
 use Config;
-use File::Spec::Functions qw(catfile tmpdir);
+use File::Spec;
 use File::Temp qw(tempdir mkstemp);
 
 use 5.008;
@@ -40,7 +40,7 @@ sub new {
     my $script_dir = $options{script_dir} || _default_script_dir();
     my $self = {
         script_dir           => $script_dir,
-        command_history_file => catfile( (mkstemp( "historyXXXX" ))[1] ),
+        command_history_file => File::Spec->catfile( (mkstemp( "historyXXXX" ))[1] ),
     };
     bless $self, $class;
 }
@@ -56,7 +56,7 @@ sub set_command {
     my( $command_name, $command_output, $command_exit_status) = @_;
     mkdir $self->script_dir if ( !-d $self->script_dir );
 
-    my $command_file = catfile($self->script_dir, $command_name);
+    my $command_file = File::Spec->catfile($self->script_dir, $command_name);
     push @{ $self->{command_files} },$command_file;
 
     open( my $command_fh, '>', $command_file ) || die $!;
@@ -125,7 +125,7 @@ EOS
 
 sub _default_script_dir {
     (my $pkg = lc(__PACKAGE__) . "XXXX") =~ s/::/-/g;
-    return tempdir( $pkg, DIR=>tmpdir(), CLEANUP=>1 );
+    return tempdir( $pkg, DIR => File::Spec->tmpdir(), CLEANUP => 1 );
 }
 
 sub DESTROY {
