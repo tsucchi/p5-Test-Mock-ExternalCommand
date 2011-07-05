@@ -2,11 +2,37 @@ package Test::Mock::ExternalCommand;
 use strict;
 use warnings;
 use Config;
-use File::Spec;
-use File::Temp qw(tempdir mkstemp);
 
 use 5.008;
 our $VERSION = '0.01';
+
+my $command_registry = {};
+
+BEGIN {
+    sub _command_and_args {
+        my ( $command, @args ) = @_;
+        my ( $command_real, @args2 ) = split qr/\s+/, $command;
+        my @args_real = (@args2, @args);
+        return ($command_real, @args_real);
+    }
+
+    *CORE::GLOBAL::system = sub {
+        my ( $command, @args ) = _command_and_args(@_);
+        if ( defined $command_registry->{$command} ) {
+            return $command_registry->{$command}->{system}->(@args);
+        }
+        CORE::system(@_);
+    };
+    *CORE::GLOBAL::readpipe = sub {
+        my ( $command, @args ) = _command_and_args(@_);
+        if ( defined $command_registry->{$command} ) {
+            return $command_registry->{$command}->{readpipe}->(@args);
+        }
+        CORE::readpipe(@_);
+    };
+
+}
+
 
 =head1 NAME
 
@@ -27,46 +53,38 @@ Test::Mock::ExternalCommand enable to make mock-external command in easy way.
 
 =cut
 
-=head2 new( script_dir => "/script/dir/used/in/this/module" )
-
-parameter <I>script_dir</I> is directory where mock will be installed. If <I>script_dir</I>is omitted, temporary directory is automatically generated and deleted when object is not used.
+=head2 new()
 
 =cut
 
 sub new {
-    my $class = shift;
-    my %options = @_;
-
-    my $script_dir = $options{script_dir} || _default_script_dir();
+    my ( $class ) = @_;
     my $self = {
-        script_dir           => $script_dir,
-        command_history_file => File::Spec->catfile( (mkstemp( "historyXXXX" ))[1] ),
+        command_history => [],
     };
     bless $self, $class;
 }
 
 =head2 set_command( $command_name,  $command_output_string, $command_exit_status )
 
-set mock external command command. Mock external scripts are deleted when object is DESTROY'ed.
+set mock external command command.
 
 =cut
 
 sub set_command {
-    my $self = shift;
-    my( $command_name, $command_output, $command_exit_status) = @_;
-    mkdir $self->script_dir if ( !-d $self->script_dir );
+    my ( $self, $command_name, $command_output, $command_exit_status ) = @_;
+    $command_registry->{$command_name}->{system} = sub {
+        my ( @args ) = @_;
+        push @{ $self->{command_history} }, [$command_name, @args];
+        print $command_output;
+        return $command_exit_status << 8;
+    };
 
-    my $command_file = File::Spec->catfile($self->script_dir, $command_name);
-    push @{ $self->{command_files} },$command_file;
-
-    open( my $command_fh, '>', $command_file ) || die $!;
-    print {$command_fh} $self->_command_script_body( $command_file,
-                                                     $command_output,
-                                                     $command_exit_status);
-    close($command_fh);
-    chmod 0755, $command_file;
-
-    $ENV{PATH} = sprintf("%s%s%s", $self->script_dir, $Config{path_sep}, $ENV{PATH});
+    $command_registry->{$command_name}->{readpipe} = sub {
+        my ( @args ) = @_;
+        push @{ $self->{command_history} }, [$command_name, @args];
+        return $command_output;
+    };
 }
 
 =head2 history
@@ -76,66 +94,11 @@ return command history.
 =cut
 
 sub history {
-    my $self = shift;
-    my @result;
-    open(my $history_fh, '<', $self->{command_history_file}) || die $!;
-    while( my $line = <$history_fh> ) {
-        my @command_and_args = split(/\s+/, $line);
-        push @result, \@command_and_args;
-    }
-    close($history_fh);
-    return @result;
+    my ( $self ) = @_;
+    return @{ $self->{command_history} };
 }
 
 
-=head2 script_dir
-
-return script_dir set in new() or automatically set.
-
-=cut
-
-sub script_dir {
-    return shift->{script_dir};
-}
-
-
-sub _command_script_body {
-    my $self = shift;
-    my($command_filename, $output, $exit_status) = @_;
-    $exit_status = 0 if ( !defined $exit_status );
-    my $history_file = $self->{command_history_file};
-    my $script_dir = $self->script_dir;
-    $command_filename =~ s{^$script_dir/?}{};
-
-    my $mode = -e $history_file ? '>>' : '>';
-    return <<EOS;
-#!/usr/bin/perl -w
-use strict;
-use warnings;
-
-open(my \$HISTORY, '$mode', "$history_file") || die \$!;
-print {\$HISTORY} "$command_filename \@ARGV\\n";
-close(\$HISTORY);
-
-print "$output";
-
-exit $exit_status;
-EOS
-}
-
-sub _default_script_dir {
-    (my $pkg = lc(__PACKAGE__) . "XXXX") =~ s/::/-/g;
-    return tempdir( $pkg, DIR => File::Spec->tmpdir(), CLEANUP => 1 );
-}
-
-sub DESTROY {
-    my $self = shift;
-    unlink $self->{command_history_file};
-    for my $command_file ( @{ $self->{command_files} } ) {
-        unlink $command_file;
-    }
-    rmdir $self->{script_dir} || warn $!;
-}
 
 
 1;
