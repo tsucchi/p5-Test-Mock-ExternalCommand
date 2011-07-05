@@ -149,7 +149,7 @@ Takuya Tsuchida E<lt>tsucchi@cpan.orgE<gt>
 
 =head1 Copyright
 
-Copyright (c) 2010 Takuya Tsuchida
+Copyright (c) 2010-2011 Takuya Tsuchida
 
 =head1 LICENSE
 
