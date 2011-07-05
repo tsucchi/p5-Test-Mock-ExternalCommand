@@ -21,3 +21,4 @@
 \.sw[po]$
 ^tmp/
 ^TODO$
+^MYMETA.yml$
