@@ -20,5 +20,4 @@ is( $ret1>>8, 0);
 my $ret2 = system("my_dummy_command2");
 is( $ret2>>8, 1);
 
-
 done_testing();

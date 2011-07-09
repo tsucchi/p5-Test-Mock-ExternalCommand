@@ -20,4 +20,6 @@ is( $ret2>>8, 1);
 is( `my_dummy_command3`, "CCC\n" );
 is( `my_dummy_command4`, "DDD\n" );
 
+is_deeply( [$m->commands()], ["my_dummy_command1", "my_dummy_command2", "my_dummy_command3", "my_dummy_command4" ]);
+
 done_testing();

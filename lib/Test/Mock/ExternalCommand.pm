@@ -10,6 +10,7 @@ our $VERSION = '0.01';
 my $command_registry = {};
 my $print_buf = "";
 my $print_override = 0;
+my $command_history = {};
 
 BEGIN {
     sub _command_and_args {
@@ -62,9 +63,12 @@ Test::Mock::ExternalCommand enable to make mock-external command in easy way.
 sub new {
     my ( $class ) = @_;
     my $self = {
-        command_history => [],
+        my_commands     => {},
     };
     bless $self, $class;
+    my $address = $self + 0;
+    $command_history->{$address} = [];
+    return $self;
 }
 
 =head2 set_command( $command_name,  $command_output_string, $command_exit_status )
@@ -77,17 +81,20 @@ sub set_command {
     my ( $self, $command_name, $command_output, $command_exit_status ) = @_;
 
     carp "${command_name}: already defined\n" if ( defined $command_registry->{$command_name} );
+    $self->{my_commands}->{$command_name} = $command_name;
+
+    my $address = $self + 0; # address is calculated in this scope avoiding refcount increment
 
     $command_registry->{$command_name}->{system} = sub {
         my ( @args ) = @_;
-        push @{ $self->{command_history} }, [$command_name, @args];
+        push @{ $command_history->{$address} }, [$command_name, @args];
         print $command_output;
         return $command_exit_status << 8;
     };
 
     $command_registry->{$command_name}->{readpipe} = sub {
         my ( @args ) = @_;
-        push @{ $self->{command_history} }, [$command_name, @args];
+        push @{ $command_history->{$address} }, [$command_name, @args];
         return $command_output;
     };
 }
@@ -102,16 +109,19 @@ sub set_command_by_coderef {
     my ( $self, $command_name, $command_behavior_subref ) = @_;
 
     carp "${command_name}: already defined\n" if ( defined $command_registry->{$command_name} );
+    $self->{my_commands}->{$command_name} = $command_name;
+
+    my $address = $self + 0; # address is calculated in this scope avoiding refcount increment
 
     $command_registry->{$command_name}->{system} = sub {
         my ( @args ) = @_;
-        push @{ $self->{command_history} }, [$command_name, @args];
+        push @{ $command_history->{$address} }, [$command_name, @args];
         my $ret =  $command_behavior_subref->(@args);
         return $ret << 8;
     };
     $command_registry->{$command_name}->{readpipe} = sub {
         my ( @args ) = @_;
-        push @{ $self->{command_history} }, [$command_name, @args];
+        push @{ $command_history->{$address} }, [$command_name, @args];
         return $command_behavior_subref->(@args);
     };
 }
@@ -124,7 +134,8 @@ return command history.
 
 sub history {
     my ( $self ) = @_;
-    return @{ $self->{command_history} };
+    my $address = $self + 0;
+    return @{ $command_history->{$address} };
 }
 
 =head2 reset_history()
@@ -135,11 +146,39 @@ reset command history.
 
 sub reset_history {
     my ( $self ) = @_;
-    $self->{command_history} = [];
+    my $address = $self + 0;
+    $command_history->{$address} = [];
 }
 
+=head2 commands()
 
+return overridden command names
 
+=cut
+
+sub commands {
+    my ( $self ) = @_;
+    return sort keys %{ $self->{my_commands} };
+}
+
+# commands registered in global structure
+sub _registered_commands {
+    return sort keys %{ $command_registry };
+}
+
+sub _unset_all_commands {
+    my ( $self ) = @_;
+    for my $command ( $self->commands() ) {
+        delete $command_registry->{$command};
+    }
+    $self->{my_commands} = {};
+    $self->reset_history();
+}
+
+sub DESTROY {
+    my ( $self ) = @_;
+    $self->_unset_all_commands() if ( defined $self );
+}
 
 1;
 __END__
