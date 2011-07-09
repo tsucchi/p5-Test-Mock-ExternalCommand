@@ -28,4 +28,7 @@ my $history_expected = [
 
 is_deeply( [$m->history], $history_expected );
 
+$m->reset_history();
+is_deeply( [$m->history], [] );
+
 done_testing();

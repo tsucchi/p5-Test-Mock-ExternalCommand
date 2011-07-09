@@ -109,7 +109,7 @@ sub set_command_by_coderef {
     };
 }
 
-=head2 history
+=head2 history()
 
 return command history.
 
@@ -118,6 +118,17 @@ return command history.
 sub history {
     my ( $self ) = @_;
     return @{ $self->{command_history} };
+}
+
+=head2 reset_history()
+
+reset command history.
+
+=cut
+
+sub reset_history {
+    my ( $self ) = @_;
+    $self->{command_history} = [];
 }
 
 
