@@ -8,8 +8,6 @@ use 5.008;
 our $VERSION = '0.01';
 
 my $command_registry = {};
-my $print_buf = "";
-my $print_override = 0;
 my $command_history = {};
 
 BEGIN {
@@ -158,12 +156,14 @@ return overridden command names
 
 sub commands {
     my ( $self ) = @_;
-    return sort keys %{ $self->{my_commands} };
+    my @result =  sort keys %{ $self->{my_commands} };
+    return @result;
 }
 
 # commands registered in global structure
 sub _registered_commands {
-    return sort keys %{ $command_registry };
+    my @result =  sort keys %{ $command_registry };
+    return @result;
 }
 
 sub _unset_all_commands {
