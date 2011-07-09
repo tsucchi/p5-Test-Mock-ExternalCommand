@@ -2,6 +2,7 @@ package Test::Mock::ExternalCommand;
 use strict;
 use warnings;
 use Config;
+use Carp;
 
 use 5.008;
 our $VERSION = '0.01';
@@ -74,6 +75,9 @@ set mock external command command.
 
 sub set_command {
     my ( $self, $command_name, $command_output, $command_exit_status ) = @_;
+
+    carp "${command_name}: already defined\n" if ( defined $command_registry->{$command_name} );
+
     $command_registry->{$command_name}->{system} = sub {
         my ( @args ) = @_;
         push @{ $self->{command_history} }, [$command_name, @args];
@@ -96,6 +100,9 @@ set mock external command command using subroutine reference(coderef).
 
 sub set_command_by_coderef {
     my ( $self, $command_name, $command_behavior_subref ) = @_;
+
+    carp "${command_name}: already defined\n" if ( defined $command_registry->{$command_name} );
+
     $command_registry->{$command_name}->{system} = sub {
         my ( @args ) = @_;
         push @{ $self->{command_history} }, [$command_name, @args];
