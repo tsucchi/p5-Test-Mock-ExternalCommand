@@ -7,6 +7,8 @@ use 5.008;
 our $VERSION = '0.01';
 
 my $command_registry = {};
+my $print_buf = "";
+my $print_override = 0;
 
 BEGIN {
     sub _command_and_args {
@@ -30,7 +32,6 @@ BEGIN {
         }
         CORE::readpipe(@_);
     };
-
 }
 
 
@@ -84,6 +85,27 @@ sub set_command {
         my ( @args ) = @_;
         push @{ $self->{command_history} }, [$command_name, @args];
         return $command_output;
+    };
+}
+
+=head2 set_command_by_coderef( $command_name,  $command_behavior_subref )
+
+set mock external command command using subroutine reference(coderef).
+
+=cut
+
+sub set_command_by_coderef {
+    my ( $self, $command_name, $command_behavior_subref ) = @_;
+    $command_registry->{$command_name}->{system} = sub {
+        my ( @args ) = @_;
+        push @{ $self->{command_history} }, [$command_name, @args];
+        my $ret =  $command_behavior_subref->(@args);
+        return $ret << 8;
+    };
+    $command_registry->{$command_name}->{readpipe} = sub {
+        my ( @args ) = @_;
+        push @{ $self->{command_history} }, [$command_name, @args];
+        return $command_behavior_subref->(@args);
     };
 }
 
