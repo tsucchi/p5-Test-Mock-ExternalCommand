@@ -8,8 +8,8 @@ tests 't/*.t';
 author_tests 'xt';
 
 test_requires 'Test::More';
-test_requres  'Capture::Tiny';
+test_requires 'Capture::Tiny';
 
 auto_set_repository;
-auto_include;
+#auto_include;
 WriteAll;
