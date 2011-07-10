@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use Config;
 use Carp;
+use PadWalker qw(peek_my);
 
 use 5.008;
 our $VERSION = '0.01';
@@ -25,8 +26,13 @@ BEGIN {
         }
         CORE::system(@_);
     };
+
     *CORE::GLOBAL::readpipe = sub {
         my ( $command, @args ) = _command_and_args(@_);
+        # readpipe receives variable name if variable is used in backquote string,
+        # so expand value from variable name using PadWalker...
+        my $walker = peek_my(1);
+        $command = ${ $walker->{$command} } if ( $command =~ /^\$/ && defined $walker->{$command});
         if ( defined $command_registry->{$command} ) {
             return $command_registry->{$command}->{readpipe}->(@args);
         }
