@@ -4,6 +4,7 @@ use warnings;
 use Config;
 use Carp;
 use PadWalker qw(peek_my);
+use Data::Dumper;
 
 use 5.008;
 our $VERSION = '0.01';
@@ -19,6 +20,33 @@ BEGIN {
         return ($command_real, @args_real);
     }
 
+    sub _expand_variable {
+        my ($command, $peek_level) = @_;
+        if ( $command =~ /^\$/ ) { # variable
+            # readpipe receives variable name if variable is used in backquote string,
+            # so expand value from variable name using PadWalker...
+            my $walker = peek_my($peek_level);
+            my $new_command = undef;
+            my $variable_gen_code = "{\n";
+            for my $variable_name ( keys %{ $walker } ) {
+                my $sigil = substr $variable_name, 0, 1;
+                local $Data::Dumper::Terse  = 1;
+                local $Data::Dumper::Indent = 0;
+                my $value = Dumper($walker->{$variable_name});
+                next if ( $value =~ /^\\bless/ ); #exclude object
+
+                $variable_gen_code .= "  my $variable_name = ${sigil}{ $value };\n";
+            }
+            $variable_gen_code .= "  \$new_command = $command;\n";
+            $variable_gen_code .= "}\n";
+            ## no critic
+            eval "$variable_gen_code";
+            ## use critic
+            $command = $new_command if ( defined $new_command );
+        }
+        return $command;
+    }
+
     *CORE::GLOBAL::system = sub {
         my ( $command, @args ) = _command_and_args(@_);
         if ( defined $command_registry->{$command} ) {
@@ -29,10 +57,7 @@ BEGIN {
 
     *CORE::GLOBAL::readpipe = sub {
         my ( $command, @args ) = _command_and_args(@_);
-        # readpipe receives variable name if variable is used in backquote string,
-        # so expand value from variable name using PadWalker...
-        my $walker = peek_my(1);
-        $command = ${ $walker->{$command} } if ( $command =~ /^\$/ && defined $walker->{$command});
+        $command = _expand_variable($command, 2);
         if ( defined $command_registry->{$command} ) {
             return $command_registry->{$command}->{readpipe}->(@args);
         }
