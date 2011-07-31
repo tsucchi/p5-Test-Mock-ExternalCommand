@@ -2,7 +2,7 @@ use inc::Module::Install;
 name 'Test-Mock-ExternalCommand';
 all_from 'lib/Test/Mock/ExternalCommand.pm';
 
-requires 'PadWalker';
+requires 'Variable::Expand::AnyLevel';
 
 tests 't/*.t';
 author_tests 'xt';
