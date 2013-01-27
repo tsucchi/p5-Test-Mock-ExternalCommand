@@ -6,7 +6,7 @@ use Carp;
 use Variable::Expand::AnyLevel qw(expand_variable);
 
 use 5.008;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 my $command_registry = {};
 my $command_history = {};
@@ -196,7 +196,7 @@ Takuya Tsuchida E<lt>tsucchi@cpan.orgE<gt>
 
 =head1 Copyright
 
-Copyright (c) 2010-2011 Takuya Tsuchida
+Copyright (c) 2010-2013 Takuya Tsuchida
 
 =head1 LICENSE
 
