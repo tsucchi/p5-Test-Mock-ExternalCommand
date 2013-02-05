@@ -1,6 +1,11 @@
 use inc::Module::Install;
 name 'Test-Mock-ExternalCommand';
-all_from 'lib/Test/Mock/ExternalCommand.pm';
+all_from             'lib/Test/Mock/ExternalCommand.pm';
+readme_from          'lib/Test/Mock/ExternalCommand.pm';
+readme_markdown_from 'lib/Test/Mock/ExternalCommand.pm';
+readme_pod_from      'lib/Test/Mock/ExternalCommand.pm';
+
+githubmeta;
 
 requires 'Variable::Expand::AnyLevel';
 
